@@ -22,12 +22,19 @@
 uint16_t center_x;
 uint16_t center_y;
 
-bool leds_Aceso[NUM_PIXELS] = {
+bool leds_Normal[NUM_PIXELS] = {
     0, 1, 1, 1, 0,
     1, 1, 1, 1, 1,
     1, 1, 1, 1, 1,
     1, 1, 1, 1, 1,
     0, 1, 1, 1, 0};
+
+bool leds_Alerta[NUM_PIXELS] = {
+    1, 0, 0, 0, 1,
+    0, 1, 0, 1, 0,
+    0, 0, 1, 0, 0,
+    0, 1, 0, 1, 0,
+    1, 0, 0, 0, 1};
 
 typedef struct
 {
@@ -142,8 +149,17 @@ void vDisplayTask(void *params)
 
                 ssd1306_fill(&ssd, false);
                 desenhar(&ssd, icones);
-                ssd1306_draw_string(&ssd, volume, 60, 12);
-                ssd1306_draw_string(&ssd, nivel, 60, 45);
+                if (estacao_data.v_chuva > 5.0)
+                {
+                    desenhar(&ssd, alerta1);
+                }
+                if (estacao_data.n_agua > 5.0)
+                {
+                    desenhar(&ssd, alerta2);
+                }
+
+                ssd1306_draw_string(&ssd, volume, 50, 12);
+                ssd1306_draw_string(&ssd, nivel, 50, 45);
                 ssd1306_send_data(&ssd); // Atualiza o display
                 atualizar_display = false;
             }
@@ -161,13 +177,13 @@ void vMatrizTask(void *params)
         estacao_data_t estacao_data;
         if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE)
         {
-            if (estacao_data.v_chuva > 5.0)
+            if (estacao_data.v_chuva > 5.0 || estacao_data.n_agua > 5.0)
             {
-                set_one_led(2, 0, 0, leds_Aceso);
+                set_one_led(2, 0, 0, leds_Alerta);
             }
             else
             {
-                set_one_led(0, 2, 0, leds_Aceso);
+                set_one_led(0, 2, 0, leds_Normal);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(50));
@@ -188,7 +204,7 @@ void vLedTask(void *params)
         estacao_data_t estacao_data;
         if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE)
         {
-            if (estacao_data.n_agua > 5.0)
+            if (estacao_data.n_agua > 5.0 || estacao_data.v_chuva > 5.0)
             {
                 gpio_put(LED_RED, true);
                 gpio_put(LED_GREEN, false);
