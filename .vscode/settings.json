@@ -40,6 +40,7 @@
         "joystick.h": "c",
         "adc.h": "c",
         "stdlib.h": "c",
-        "gpio.h": "c"
+        "gpio.h": "c",
+        "matrizled.h": "c"
     }
 }
