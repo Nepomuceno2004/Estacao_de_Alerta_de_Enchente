@@ -23,7 +23,7 @@ void buzzer_play(uint BUZZER_PIN, uint freq, uint duration_ms)
     pwm_set_wrap(slice_num, top);
 
     // Define o duty cycle
-    pwm_set_chan_level(slice_num, pwm_gpio_to_channel(BUZZER_PIN), (top * 2) / 10);
+    pwm_set_chan_level(slice_num, pwm_gpio_to_channel(BUZZER_PIN), (top * 5) / 100);
 
     // Ativa o PWM
     pwm_set_enabled(slice_num, true);
@@ -36,37 +36,6 @@ void buzzer_play(uint BUZZER_PIN, uint freq, uint duration_ms)
 
     // Pausa entre os tons
     sleep_ms(20);
-}
-
-// Som contínuo com beeps curtos a cada segundo – sinal verde
-void modo_verde(uint BUZZER_PIN)
-{
-    buzzer_play(BUZZER_PIN, 1500, 100); // Beep único e curto
-    sleep_ms(900);
-}
-
-// Sinal de atenção – beeps rápidos por 1s
-void modo_amarelo(uint BUZZER_PIN)
-{
-    for (int i = 0; i < 5; i++)
-    {
-        buzzer_play(BUZZER_PIN, 2000, 100); // Beep de 100ms
-        sleep_ms(100);                      // Pausa de 100ms
-    }
-}
-
-// Sinal de alerta – som grave e longo
-void modo_vermelho(uint BUZZER_PIN)
-{
-    buzzer_play(BUZZER_PIN, 1000, 500); // Tom de 1000 Hz por 500 ms
-    sleep_ms(1500);
-}
-
-// Sinal de alerta noturno – som mais grave e mais longo
-void buzzer_noturno(uint BUZZER_PIN)
-{
-    buzzer_play(BUZZER_PIN, 2000, 1000); // Tom de 2000 Hz por 1000 ms
-    sleep_ms(1000);
 }
 
 #endif

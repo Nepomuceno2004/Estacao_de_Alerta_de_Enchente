@@ -10,14 +10,19 @@
 #include "lib/font.h"
 #include "lib/ssd1306.h"
 #include "lib/matrizLed.h"
+#include "lib/buzzer.h"
 
 #define LED_RED 13
 #define LED_GREEN 11
 
 #define STEP 0.10 // Passo de variação para cada movimento do joystick
 
+#define ALERTA_N_AGUA 70
+#define ALERTA_V_CHUVA 80
+
 #define ADC_JOYSTICK_X 26
 #define ADC_JOYSTICK_Y 27
+#define BUZZER_PIN 21
 
 uint16_t center_x;
 uint16_t center_y;
@@ -30,11 +35,11 @@ bool leds_Normal[NUM_PIXELS] = {
     0, 1, 1, 1, 0};
 
 bool leds_Alerta[NUM_PIXELS] = {
-    1, 0, 0, 0, 1,
-    0, 1, 0, 1, 0,
+    0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1,
+    0, 1, 1, 1, 0,
     0, 0, 1, 0, 0,
-    0, 1, 0, 1, 0,
-    1, 0, 0, 0, 1};
+    0, 0, 0, 0, 0};
 
 typedef struct
 {
@@ -70,12 +75,9 @@ void vJoystickTask(void *params)
     }
     center_y = sum / 100;
 
-    // printf("x = %u\n", center_x);
-    // printf("y = %u\n", center_y);
-
     estacao_data_t estacao;
-    estacao.n_agua = 3.0;
-    estacao.v_chuva = 3.0;
+    estacao.n_agua = 60.0;
+    estacao.v_chuva = 70.0;
 
     uint16_t x_pos;
     uint16_t y_pos;
@@ -101,7 +103,6 @@ void vJoystickTask(void *params)
                 if (estacao.v_chuva < 0.0)
                     estacao.v_chuva = 0.0;
 
-                printf("Volume de chuva: %.2f %%\n\n", estacao.v_chuva);
                 atualizar_display = true;
             }
         }
@@ -119,7 +120,6 @@ void vJoystickTask(void *params)
                 if (estacao.n_agua < 0.0)
                     estacao.n_agua = 0.0;
 
-                printf("Nível de água: %.2f %%\n\n", estacao.n_agua);
                 atualizar_display = true;
             }
         }
@@ -137,35 +137,32 @@ void vDisplayTask(void *params)
     while (true)
     {
         estacao_data_t estacao_data;
-        if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE)
+        if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE && atualizar_display)
         {
-            if (atualizar_display)
+            char volume[8];
+            char nivel[8];
+
+            snprintf(volume, sizeof(volume), "%.2f%%", estacao_data.v_chuva);
+            snprintf(nivel, sizeof(nivel), "%.2f%%", estacao_data.n_agua);
+
+            ssd1306_fill(&ssd, false);
+            desenhar(&ssd, icones);
+            if (estacao_data.v_chuva > ALERTA_V_CHUVA)
             {
-                char volume[8];
-                char nivel[8];
-
-                snprintf(volume, sizeof(volume), "%.2f %%", estacao_data.v_chuva);
-                snprintf(nivel, sizeof(nivel), "%.2f %%", estacao_data.n_agua);
-
-                ssd1306_fill(&ssd, false);
-                desenhar(&ssd, icones);
-                if (estacao_data.v_chuva > 5.0)
-                {
-                    desenhar(&ssd, alerta1);
-                }
-                if (estacao_data.n_agua > 5.0)
-                {
-                    desenhar(&ssd, alerta2);
-                }
-
-                ssd1306_draw_string(&ssd, volume, 50, 12);
-                ssd1306_draw_string(&ssd, nivel, 50, 45);
-                ssd1306_send_data(&ssd); // Atualiza o display
-                atualizar_display = false;
+                desenhar(&ssd, alerta1);
             }
+            if (estacao_data.n_agua > ALERTA_N_AGUA)
+            {
+                desenhar(&ssd, alerta2);
+            }
+
+            ssd1306_draw_string(&ssd, volume, 50, 12);
+            ssd1306_draw_string(&ssd, nivel, 50, 45);
+            ssd1306_send_data(&ssd); // Atualiza o display
+            atualizar_display = false;
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
     }
+    vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 void vMatrizTask(void *params)
@@ -177,18 +174,19 @@ void vMatrizTask(void *params)
         estacao_data_t estacao_data;
         if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE)
         {
-            if (estacao_data.v_chuva > 5.0 || estacao_data.n_agua > 5.0)
+            if (estacao_data.v_chuva >= ALERTA_V_CHUVA || estacao_data.n_agua >= ALERTA_N_AGUA)
             {
-                set_one_led(2, 0, 0, leds_Alerta);
+                set_one_led(10, 0, 0, leds_Alerta);
             }
             else
             {
-                set_one_led(0, 2, 0, leds_Normal);
+                set_one_led(0, 10, 0, leds_Normal);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
+
 void vLedTask(void *params)
 {
     gpio_init(LED_RED);
@@ -204,7 +202,7 @@ void vLedTask(void *params)
         estacao_data_t estacao_data;
         if (xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE)
         {
-            if (estacao_data.n_agua > 5.0 || estacao_data.v_chuva > 5.0)
+            if (estacao_data.v_chuva >= ALERTA_V_CHUVA || estacao_data.n_agua >= ALERTA_N_AGUA)
             {
                 gpio_put(LED_RED, true);
                 gpio_put(LED_GREEN, false);
@@ -214,6 +212,24 @@ void vLedTask(void *params)
                 gpio_put(LED_GREEN, true);
                 gpio_put(LED_RED, false);
             }
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+void vBuzzerTask(void *params)
+{
+    buzzer_init(BUZZER_PIN);
+
+    while (true)
+    {
+        estacao_data_t estacao_data;
+        if ((xQueueReceive(xQueueEstacaoData, &estacao_data, portMAX_DELAY) == pdTRUE) &&
+            (estacao_data.v_chuva >= ALERTA_V_CHUVA || estacao_data.n_agua >= ALERTA_N_AGUA))
+        {
+            buzzer_play(BUZZER_PIN, 1000, 300);
+            buzzer_play(BUZZER_PIN, 1500, 300);
+            vTaskDelay(pdMS_TO_TICKS(400));
         }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
@@ -244,7 +260,8 @@ int main()
     xTaskCreate(vJoystickTask, "Joystick Task", 256, NULL, 1, NULL);
     xTaskCreate(vDisplayTask, "Display Task", 512, NULL, 1, NULL);
     xTaskCreate(vLedTask, "LED Task", 256, NULL, 1, NULL);
-    xTaskCreate(vMatrizTask, "LED Task", 256, NULL, 1, NULL);
+    xTaskCreate(vBuzzerTask, "Buzzer Task", 256, NULL, 1, NULL);
+    xTaskCreate(vMatrizTask, "Matriz Task", 256, NULL, 1, NULL);
 
     // Inicia o agendador
     vTaskStartScheduler();

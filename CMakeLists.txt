@@ -32,6 +32,7 @@ add_executable(${PROJECT_NAME}
     Estacao_de_Alerta_de_Enchente.c
     lib/ssd1306.c
     lib/matrizLed.c
+    lib/buzzer.c
  )
 
 target_link_libraries(${PROJECT_NAME}

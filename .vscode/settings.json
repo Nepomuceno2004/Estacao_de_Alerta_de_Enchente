@@ -41,6 +41,8 @@
         "adc.h": "c",
         "stdlib.h": "c",
         "gpio.h": "c",
-        "matrizled.h": "c"
+        "matrizled.h": "c",
+        "ssd1306.h": "c",
+        "buzzer.h": "c"
     }
 }
